@@ -1,8 +1,11 @@
 package org.example.CameraClasses;
 
+import org.example.Main;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +14,7 @@ import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 
 public class VideoStreamSecondProcessing implements Runnable {
-
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
     ImageProcessing imageProcessing;
     Thread threadImage;
     private Mat frame;
@@ -20,25 +23,28 @@ public class VideoStreamSecondProcessing implements Runnable {
     private Mat diffFrame;
     private Mat grayFrame;
     private Mat grayPrevFrame;
-    private final double thresholdFirst = 35.0;
-    private final double thresholdSecond = 125.0;
-    private final long minSquare = 1300 * 600;
+//    private final double thresholdFirst = 35.0;
+    private final double thresholdSecond = 120.0;
+    //private final long minSquare = 1300 * 600;
+    private final int minHeight = 500, minWight = 1100;
+    private int yCutTop = 140, yCutDown = 200;
     private int frameCount = 0;
     private final int numOfEveryFrame = 5;
 
     private volatile boolean isActive = true;
 
-    private final File dirImg = new File("ImgProc");
+    private File dirImg;
 
     private volatile Queue<Container2Mat> images = new LinkedList<>();
 
-    private final int sleepCount = 2400;
+    //private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     public VideoStreamSecondProcessing(){
-
+        File dirImg = new File("ImgProc");
         if(!dirImg.exists()){
             dirImg.mkdir();
+            logger.info("Создание папки " + dirImg.getName());
         }
         frame = new Mat();
         rectFrame = new Mat();
@@ -50,23 +56,28 @@ public class VideoStreamSecondProcessing implements Runnable {
         imageProcessing = new ImageProcessing();
         threadImage = new Thread(imageProcessing);
         threadImage.start();
+
+        logger.info("Параметры videoSecond: min_height = " + minHeight +", min_wight = " + minWight + ", threshold_second = " + thresholdSecond + ", y_cut_top = " + yCutTop + ", y_cut_down = " + yCutDown);
     }
-    private Mat getOneCol(Mat frame){
-        Mat oneCol = new Mat(frame.rows(), 1, CvType.CV_8UC1);
-        for(int i = 0; i < frame.rows();i++){
-            oneCol.put(i,0, frame.get(i,frame.cols() * 3 / 4 ));
-        }
-        return oneCol;
-    }
+//    private Mat getOneCol(Mat frame){
+//        Mat oneCol = new Mat(frame.rows(), 1, CvType.CV_8UC1);
+//        for(int i = 0; i < frame.rows();i++){
+//            oneCol.put(i,0, frame.get(i,frame.cols() * 3 / 4 ));
+//        }
+//        return oneCol;
+//    }
 
     private Mat getCutedFrame(Mat frame){
-        Mat cuted = new Mat(frame, new Rect(0, 140, frame.width(), frame.height() - 140 - 200));
+        Mat cuted = new Mat(frame, new Rect(0, yCutTop, frame.width(), frame.height() - yCutTop - yCutDown));
         return cuted;
     }
 // 1400 * 700
     private boolean isTrueSize(Mat frag){
-        if(frag.width() * frag.height() < minSquare){
-            return false;
+//        if(frag.width() * frag.height() < minSquare){
+//            return false;
+//        }
+        if(frag.width() < minWight || frag.height() < minHeight){
+            return  false;
         }
         else return true;
     }
@@ -89,6 +100,7 @@ public class VideoStreamSecondProcessing implements Runnable {
     public void run(){
         int i = 0;
         //int sleeping = 0;
+        logger.info("Попытка запуска потока threadSecond");
         while (isActive) {
             Container2Mat grayAndPrevGrayImages;
             while ((grayAndPrevGrayImages = images.poll()) != null) {
@@ -135,6 +147,7 @@ public class VideoStreamSecondProcessing implements Runnable {
                         new Scalar(0, 0, 255), 2);
                 //Imgproc.resize(frame, frame, new Size(640, 480));
                 if (isTrueSize(frag)) {
+                    logger.info("Достаточный размер фрагмента в threadSecond");
                     String path = "";
                     try {
                         path = dirImg + File.separator + "1-" + nameImg;
@@ -145,8 +158,9 @@ public class VideoStreamSecondProcessing implements Runnable {
                         Container2Mat fullAndFragImages = new Container2Mat(frame, frag, nameImg);
                         imageProcessing.toAddImg(fullAndFragImages);
                         Imgcodecs.imwrite(file2.getCanonicalPath(), frag);
-                    } catch (Exception ex) {
-                        System.out.println(path + "\n" + ex.getMessage());
+                    } catch (Exception e) {
+                        logger.error("Ошибка записи файла", e);
+                        System.out.println(path + "\n" + e.getMessage());
                     }
                 }
             }
@@ -155,9 +169,11 @@ public class VideoStreamSecondProcessing implements Runnable {
         try {
             stop();
         } catch (InterruptedException e) {
+            logger.error("Ошибка завершения потока videoSecond", e);
             System.out.println("Stop Except");
             throw new RuntimeException(e);
         }
+        logger.info("Поток videoSecond завершен");
         System.out.println("Video2Thr is finished");
 
     }

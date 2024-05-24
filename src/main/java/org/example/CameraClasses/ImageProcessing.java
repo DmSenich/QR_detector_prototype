@@ -23,7 +23,6 @@ public class ImageProcessing implements Runnable{
     // выделение контура (находим координаты прямоугольника с этикеткой), считываем qr-код + отправляем считанные данные.
 
 
-
     private final File dirImg = new File("ImgProc");
     private final File dirQRImg = new File("ImgQR");
 
