@@ -11,6 +11,12 @@ import static org.bytedeco.ffmpeg.global.avutil.AV_LOG_QUIET;
 import static org.bytedeco.ffmpeg.global.avutil.av_log_set_level;
 //import org.bytedeco.javacpp.avutil.AVUtil;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.StringReader;
+import java.net.URL;
+import java.util.Properties;
 import java.util.Scanner;
 
 public class Main {
@@ -18,13 +24,36 @@ public class Main {
 //    static VideoCapture camera;
     static VideoStreamFirstProcessing videoStreamProcessing;
     static Thread threadVideo;
-    private static final String pathVideo = "rtsp://admin:Itkzktcjv02@10.10.20.205/Streaming/Channels/101";
+    private static String url_system_prop = "params_system.properties";
+    private static String pathVideo;// = "rtsp://admin:Itkzktcjv02@10.10.20.205/Streaming/Channels/101";
     static {
         OpenCV.loadLocally();
         logger.info("OpenCV загружен");
     }
     public static void main(String[] args) throws InterruptedException {
         logger.info("Приложение запущено");
+        DBHelper.toInit();
+
+
+        URL url = Main.class.getClassLoader().getResource(url_system_prop);
+        Properties sys_properties = new Properties();
+        FileInputStream fis;
+        try{
+            fis = new FileInputStream(url.getFile());
+            sys_properties.load(fis);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        try{
+            pathVideo = sys_properties.getProperty("system.url_camera");
+        }
+        catch (Exception e){
+            logger.error("Ошибка чтения params_system.properties", e);
+        }
+
 
         Scanner scanner = new java.util.Scanner(System.in);
 

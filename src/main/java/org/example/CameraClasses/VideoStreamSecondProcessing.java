@@ -21,10 +21,12 @@ import java.util.concurrent.CountDownLatch;
 
 public class VideoStreamSecondProcessing implements Runnable {
 
+    private final String url_params_prop = "params_system.properties";
     private final String url_img_prop = "images.properties";
-    private static Properties img_properties;
-    private final String url_params_prop = "images.properties";
     private static Properties params_properties;
+    private static Properties img_properties;
+//    private final String url_params_prop = "images.properties";
+//    private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     ImageProcessing imageProcessing;
     Thread threadImage;
@@ -35,9 +37,9 @@ public class VideoStreamSecondProcessing implements Runnable {
     private Mat grayFrame;
     private Mat grayPrevFrame;
 //    private final double thresholdFirst = 35.0;
-    private final double thresholdSecond = 120.0;
+    private double thresholdSecond = 120.0;
     //private final long minSquare = 1300 * 600;
-    private final int minHeight = 500, minWight = 1100;
+    private int minHeight = 500, minWight = 1100;
     private int yCutTop = 140, yCutDown = 200;
     private int frameCount = 0;
     private final int numOfEveryFrame = 5;
@@ -60,7 +62,28 @@ public class VideoStreamSecondProcessing implements Runnable {
 //    private boolean imgFlagProg = false;
 
     public VideoStreamSecondProcessing(){
-        URL url_img = this.getClass().getResource(url_img_prop);
+        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        params_properties = new Properties();
+        FileInputStream fis_prm;
+        try{
+            fis_prm = new FileInputStream(url_params.getFile());
+            params_properties.load(fis_prm);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try{
+            minHeight = Integer.parseInt(params_properties.getProperty("video_second.min_height"));
+            minWight = Integer.parseInt(params_properties.getProperty("video_second.min_wight"));
+            thresholdSecond = Double.parseDouble(params_properties.getProperty("video_second.threshold"));
+            yCutDown = Integer.parseInt(params_properties.getProperty("video_second.y_cut_down"));
+            yCutTop = Integer.parseInt(params_properties.getProperty("video_second.y_cut_top"));
+        }catch (Exception e){
+            logger.error("Ошибка чтения params_system.properties для videoSecond, установлены значения по умолчанию", e);
+        }
+
+        URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
         img_properties = new Properties();
         FileInputStream fis_img;
         try{

@@ -3,6 +3,7 @@ package org.example.CameraClasses;
 import com.google.zxing.*;
 import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.HybridBinarizer;
+import org.example.DBHelper;
 import org.example.Main;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
@@ -27,7 +28,7 @@ public class ImageProcessing implements Runnable{
     // выделение контура (находим координаты прямоугольника с этикеткой), считываем qr-код + отправляем считанные данные.
     private final String url_img_prop = "images.properties";
     private static Properties img_properties;
-    private final String url_params_prop = "images.properties";
+    private final String url_params_prop = "params_system.properties";
     private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
@@ -44,8 +45,8 @@ public class ImageProcessing implements Runnable{
 //    private volatile Queue<Mat> framesQ = new LinkedList<>();
 
     private String cash = "";
-    private final int valueThresh = 190;
-    private final int valueMedianBlur = 29;
+    private int valueThresh = 190;
+    private int valueMedianBlur = 29;
     private int timeCheck = 3000;
 
 //    private final int sleepCount = 500;
@@ -58,7 +59,26 @@ public class ImageProcessing implements Runnable{
     private boolean imgFlagProg = false;
 
     public ImageProcessing(){
-        URL url_img = this.getClass().getResource(url_img_prop);
+        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        params_properties = new Properties();
+        FileInputStream fis_prm;
+        try{
+            fis_prm = new FileInputStream(url_params.getFile());
+            params_properties.load(fis_prm);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try{
+            valueThresh = Integer.parseInt(params_properties.getProperty("image_process.threshold"));
+            valueMedianBlur = Integer.parseInt(params_properties.getProperty("image_process.median_blur"));
+            timeCheck = Integer.parseInt(params_properties.getProperty("image_process.time_check"));
+        }catch (Exception e){
+            logger.error("Ошибка чтения params_system.properties для videoSecond, установлены значения по умолчанию", e);
+        }
+
+        URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
         img_properties = new Properties();
         FileInputStream fis_img;
         try{
@@ -206,6 +226,7 @@ public class ImageProcessing implements Runnable{
                 }
                 if(toReadQR(qrPath)){
                     logger.info("QR-код успешно считан: " + cash);
+                    toSaveQR(cash, dateImg);
                     if(imgFlagFull){
                         File dirFullFrame = new File(dirFullName);
                         if(!dirFullFrame.exists()){
@@ -304,7 +325,7 @@ public class ImageProcessing implements Runnable{
             BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(readerImage)));
             Result resultObj = new MultiFormatReader().decode(binaryBitmap);
             if(resultObj != null && resultObj.getText() != null && !resultObj.getText().equals(cash)){
-                toSaveQR(resultObj.getText());
+                //toSaveQR(resultObj.getText());
                 cash = resultObj.getText();
             }
             else{
@@ -319,16 +340,17 @@ public class ImageProcessing implements Runnable{
         return res;
     }
 
-    private void toSaveQR(String data){
+    private void toSaveQR(String code, Date date){
         logger.info("Сохранение QR-кода");
-        String path = "SavingQR.txt";
-        try(FileWriter writer = new FileWriter(path, true)) {
-            writer.write(data);
-            writer.write("\n");
-        }catch (IOException e){
-            logger.error("Ошибка сохранения данных", e);
-            System.out.println("toSaveQR\n" + e.getMessage());
-        }
+//        String path = "SavingQR.txt";
+//        try(FileWriter writer = new FileWriter(path, true)) {
+//            writer.write(data);
+//            writer.write("\n");
+//        }catch (IOException e){
+//            logger.error("Ошибка сохранения данных", e);
+//            System.out.println("toSaveQR\n" + e.getMessage());
+//        }
+        DBHelper.insert(date, code);
     }
 
 

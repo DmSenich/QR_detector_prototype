@@ -6,7 +6,6 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.example.Main;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +25,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 
 //    ImageProcessing imageProcessing;
 //    Thread threadImage;
-    private final String url_img_prop = "images.properties";
-    private static Properties img_properties;
-    private final String url_params_prop = "images.properties";
+    private final String url_params_prop = "params_system.properties";
     private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     VideoStreamSecondProcessing videoStreamSecondProcessing;
@@ -41,9 +38,9 @@ public class VideoStreamFirstProcessing implements Runnable {
     private Mat diffFrame;
     private Mat grayFrame;
     private Mat grayPrevFrame;
-    private final double thresholdFirst = 40.0;
-    private final int timeCheck = 200;
-    private final double firstCheckPosition = 0.75;
+    private double thresholdFirst = 40.0;
+    private int timeCheck = 200;
+    private double firstCheckPosition = 0.75;
 //    private final double thresholdSecond = 120.0;
 //    private final long minSquare = 1400 * 700;
     private int frameCount = 0;
@@ -60,23 +57,24 @@ public class VideoStreamFirstProcessing implements Runnable {
     public VideoStreamFirstProcessing(FFmpegFrameGrabber camera){
         this.camera = camera;
 
-//        URL url_img = this.getClass().getResource(url_img_prop);
-//        img_properties = new Properties();
-//        FileInputStream fis_img;
-//        try{
-//            fis_img = new FileInputStream(url_img.getFile());
-//            img_properties.load(fis_img);
-//        } catch (FileNotFoundException e) {
-//            throw new RuntimeException(e);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//        try{
-//            imgFlagBlur = Boolean.parseBoolean(img_properties.getProperty("flag.blur"));
-//
-//        }catch (Exception e){
-//            logger.error("Ошибка чтения images.properties, установлены значения по умолчанию", e);
-//        }
+        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        params_properties = new Properties();
+        FileInputStream fis_prm;
+        try{
+            fis_prm = new FileInputStream(url_params.getFile());
+            params_properties.load(fis_prm);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try{
+            timeCheck = Integer.parseInt(params_properties.getProperty("video_first.time_check"));
+            thresholdFirst = Double.parseDouble(params_properties.getProperty("video_first.threshold"));
+            firstCheckPosition = Double.parseDouble(params_properties.getProperty("video_first.first_check_position"));
+        }catch (Exception e){
+            logger.error("Ошибка чтения params_system.properties для videoFirst, установлены значения по умолчанию", e);
+        }
 
 //        try {
 //            camera.start();
