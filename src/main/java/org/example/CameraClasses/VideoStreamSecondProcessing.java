@@ -8,12 +8,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 
 public class VideoStreamSecondProcessing implements Runnable {
+
+    private final String url_img_prop = "images.properties";
+    private static Properties img_properties;
+    private final String url_params_prop = "images.properties";
+    private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     ImageProcessing imageProcessing;
     Thread threadImage;
@@ -33,15 +44,45 @@ public class VideoStreamSecondProcessing implements Runnable {
 
     private volatile boolean isActive = true;
 
-    private File dirImg;
+//    private File dirImg;
 
     private volatile Queue<Container2Mat> images = new LinkedList<>();
 
     //private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
+    private String dirBlurName = "ImgBlur";
+    private String dirDiffName = "ImgDiff";
+    private String dirProgName = "ImgProc";
+    private boolean imgFlagBlur = false;
+
+    private boolean imgFlagDiff = false;
+//    private boolean imgFlagProg = false;
+
     public VideoStreamSecondProcessing(){
-        File dirImg = new File("ImgProc");
+        URL url_img = this.getClass().getResource(url_img_prop);
+        img_properties = new Properties();
+        FileInputStream fis_img;
+        try{
+            fis_img = new FileInputStream(url_img.getFile());
+            img_properties.load(fis_img);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try{
+            imgFlagBlur = Boolean.parseBoolean(img_properties.getProperty("flag.blur"));
+            imgFlagDiff = Boolean.parseBoolean(img_properties.getProperty("flag.diff"));
+//            imgFlagProg = Boolean.parseBoolean(img_properties.getProperty("flag.prog"));
+            dirBlurName = img_properties.getProperty("dir_img.blur");
+            dirDiffName = img_properties.getProperty("dir_img.diff");
+        }
+        catch (Exception e){
+            logger.error("Ошибка чтения images.properties, установлены значения по умолчанию", e);
+        }
+
+        File dirImg = new File("ImgProg");
         if(!dirImg.exists()){
             dirImg.mkdir();
             logger.info("Создание папки " + dirImg.getName());
@@ -104,7 +145,10 @@ public class VideoStreamSecondProcessing implements Runnable {
         while (isActive) {
             Container2Mat grayAndPrevGrayImages;
             while ((grayAndPrevGrayImages = images.poll()) != null) {
-                String nameImg = grayAndPrevGrayImages.getName();
+                SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
+                Date dateImg = grayAndPrevGrayImages.getDate();
+                String nameImg = formater.format(dateImg) +".png";
+                //String nameImg = grayAndPrevGrayImages.getName();
                 grayFrame = grayAndPrevGrayImages.getFirst();
                 grayPrevFrame = grayAndPrevGrayImages.getSecond();
                 frame = grayAndPrevGrayImages.getFull();
@@ -112,33 +156,36 @@ public class VideoStreamSecondProcessing implements Runnable {
 
 //                           System.out.println("Sleep");
 
-                ///
-                File dirImgBlur = new File("ImgBlur");
-                if (!dirImgBlur.exists()) {
-                    dirImgBlur.mkdir();
+                if(imgFlagBlur){
+                    ///
+                    File dirImgBlur = new File(dirBlurName);
+                    if(!dirImgBlur.exists()){
+                        dirImgBlur.mkdir();
+                    }
+                    try {
+                        Imgcodecs.imwrite(dirImgBlur.getCanonicalPath() + File.separator + nameImg, grayFrame);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    ///
                 }
-                try {
-                    Imgcodecs.imwrite(dirImgBlur.getCanonicalPath() + File.separator + nameImg, grayFrame);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                ///
 
                 //sleeping = sleepCount;
                 Core.absdiff(getCutedFrame(grayFrame), getCutedFrame(grayPrevFrame), diffFrame);
                 Imgproc.threshold(diffFrame, diffFrame, thresholdSecond, 255, Imgproc.THRESH_BINARY);
-                ///
-                File dirDiff = new File("ImgDiff");
-                if (!dirDiff.exists()) {
-                    dirDiff.mkdir();
+                if(imgFlagDiff) {
+                    ///
+                    File dirDiff = new File(dirDiffName);
+                    if (!dirDiff.exists()) {
+                        dirDiff.mkdir();
+                    }
+                    try {
+                        Imgcodecs.imwrite(dirDiff.getCanonicalPath() + File.separator + nameImg, diffFrame);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                    ///
                 }
-                try {
-                    Imgcodecs.imwrite(dirDiff.getCanonicalPath() + File.separator + nameImg, diffFrame);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                ///
-
 //                System.out.println("Frame " + frameCount + " is significantly different");
                 Rect boundingRect = Imgproc.boundingRect(diffFrame);
                 Mat frag = new Mat(getCutedFrame(frame), boundingRect);
@@ -148,19 +195,19 @@ public class VideoStreamSecondProcessing implements Runnable {
                 //Imgproc.resize(frame, frame, new Size(640, 480));
                 if (isTrueSize(frag)) {
                     logger.info("Достаточный размер фрагмента в threadSecond");
-                    String path = "";
+                    //String path = "";
                     try {
-                        path = dirImg + File.separator + "1-" + nameImg;
-                        File file1 = new File(path);
-                        path = dirImg + File.separator + "2-" + nameImg;
-                        File file2 = new File(path);
+//                        path = dirImg + File.separator + "1-" + nameImg;
+//                        File file1 = new File(path);
+//                        path = dirImg + File.separator + "2-" + nameImg;
+//                        File file2 = new File(path);
                         //Imgcodecs.imwrite(file1.getCanonicalPath(), frame);
-                        Container2Mat fullAndFragImages = new Container2Mat(frame, frag, nameImg);
+                        Container2Mat fullAndFragImages = new Container2Mat(frame, frag, dateImg);
                         imageProcessing.toAddImg(fullAndFragImages);
-                        Imgcodecs.imwrite(file2.getCanonicalPath(), frag);
+//                        Imgcodecs.imwrite(file2.getCanonicalPath(), frag);
                     } catch (Exception e) {
                         logger.error("Ошибка записи файла", e);
-                        System.out.println(path + "\n" + e.getMessage());
+                        //System.out.println(path + "\n" + e.getMessage());
                     }
                 }
             }

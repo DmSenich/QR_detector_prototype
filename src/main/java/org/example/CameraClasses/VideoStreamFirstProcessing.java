@@ -8,14 +8,17 @@ import org.example.Main;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.videoio.VideoCapture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 public class VideoStreamFirstProcessing implements Runnable {
@@ -23,6 +26,10 @@ public class VideoStreamFirstProcessing implements Runnable {
 
 //    ImageProcessing imageProcessing;
 //    Thread threadImage;
+    private final String url_img_prop = "images.properties";
+    private static Properties img_properties;
+    private final String url_params_prop = "images.properties";
+    private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     VideoStreamSecondProcessing videoStreamSecondProcessing;
     Thread threadVideo2;
@@ -44,13 +51,33 @@ public class VideoStreamFirstProcessing implements Runnable {
 
     private volatile boolean isActive = true;
 
-    private File dirImg;
+    //private boolean imgFlagBlur = false;
+
 
 //    private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
     public VideoStreamFirstProcessing(FFmpegFrameGrabber camera){
         this.camera = camera;
+
+//        URL url_img = this.getClass().getResource(url_img_prop);
+//        img_properties = new Properties();
+//        FileInputStream fis_img;
+//        try{
+//            fis_img = new FileInputStream(url_img.getFile());
+//            img_properties.load(fis_img);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//        try{
+//            imgFlagBlur = Boolean.parseBoolean(img_properties.getProperty("flag.blur"));
+//
+//        }catch (Exception e){
+//            logger.error("Ошибка чтения images.properties, установлены значения по умолчанию", e);
+//        }
+
 //        try {
 //            camera.start();
 //        } catch (FFmpegFrameGrabber.Exception e) {
@@ -165,7 +192,10 @@ public class VideoStreamFirstProcessing implements Runnable {
 
 
 
-                String nameImg = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd__HH-mm-ss")) +".png";
+
+                Date dateImg = new Date();
+                SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
+                String nameImg = formater.format(dateImg) +".png";
                 Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
                 Imgproc.GaussianBlur(grayFrame, grayFrame, new Size(9, 9), 0);
 
@@ -186,20 +216,21 @@ public class VideoStreamFirstProcessing implements Runnable {
                     if (diff > thresholdFirst) {
 //                           System.out.println("Sleep");
 
-                        ///
-                        File dirImgBlur = new File("ImgBlur");
-                        if(!dirImgBlur.exists()){
-                            dirImgBlur.mkdir();
-                        }
-                        try {
-                            Imgcodecs.imwrite(dirImgBlur.getCanonicalPath() + File.separator + nameImg, grayFrame);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                        ///
-
+//                        if(imgFlagBlur){
+//                            ///
+//                            File dirImgBlur = new File("ImgBlur");
+//                            if(!dirImgBlur.exists()){
+//                                dirImgBlur.mkdir();
+//                            }
+//                            try {
+//                                Imgcodecs.imwrite(dirImgBlur.getCanonicalPath() + File.separator + nameImg, grayFrame);
+//                            } catch (IOException e) {
+//                                throw new RuntimeException(e);
+//                            }
+//                            ///
+//                        }
                         //Новый класс
-                        Container2Mat greyAndPrevGrey = new Container2Mat(grayFrame, grayPrevFrame, frame, nameImg);
+                        Container2Mat greyAndPrevGrey = new Container2Mat(grayFrame, grayPrevFrame, frame, dateImg);
                         videoStreamSecondProcessing.toAddImages(greyAndPrevGrey);
                         //*
                         logger.info("Замечено движение");
@@ -248,6 +279,7 @@ public class VideoStreamFirstProcessing implements Runnable {
         videoStreamSecondProcessing.toDisable();
         threadVideo2.join();
         camera.stop();
+        logger.info("Камера закрыта");
     }
 
     public void toDisable() {

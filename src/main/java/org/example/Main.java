@@ -15,7 +15,7 @@ import java.util.Scanner;
 
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    static VideoCapture camera;
+//    static VideoCapture camera;
     static VideoStreamFirstProcessing videoStreamProcessing;
     static Thread threadVideo;
     private static final String pathVideo = "rtsp://admin:Itkzktcjv02@10.10.20.205/Streaming/Channels/101";
