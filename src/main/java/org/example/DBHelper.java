@@ -3,6 +3,7 @@ package org.example;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -15,28 +16,31 @@ public final class DBHelper {
     static String LOGIN;
     static String PASSWORD;
     static String TABLE;
-
     static Properties properties;
     static final String url_prop = "database.properties";
-
-    /// 1 Данные
+    // 1 Данные
     /// 2 Проверка наличия таблицы
     /// 3 Создание таблицы при необходимости
     /// 4 Внесение данных
     public static boolean toInit(){
         boolean res = false;
-        URL url = DBHelper.class.getClassLoader().getResource(url_prop);
+        //URL url = DBHelper.class.getClassLoader().getResource(url_prop);
         properties = new Properties();
-        FileInputStream fis;
-        try {
-            fis = new FileInputStream(url.getFile());
-            properties.load(fis);
-        } catch (FileNotFoundException e) {
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_prop)) {
+            properties.load(inputStream);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+
+//        try {
+//            fis = new FileInputStream(url.getFile());
+//            properties.load(fis);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        }
+//        catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         DB_URL = properties.getProperty("sql.url");
         DB_NAME = properties.getProperty("sql.db_name");
         LOGIN = properties.getProperty("sql.login");

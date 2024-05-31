@@ -12,14 +12,14 @@ public class Container2Mat {
         this.first = first.clone();
         this.second = second.clone();
         this.full = null;
-        this.date = date;
+        this.date = (Date) date.clone();
     }
 
     public Container2Mat(Mat first, Mat second, Mat full, Date date){
         this.first = first.clone();
         this.second = second.clone();
         this.full = full.clone();
-        this.date = date;
+        this.date = (Date) date.clone();
     }
 
     public Mat getFirst(){

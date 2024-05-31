@@ -7,10 +7,7 @@ import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -62,17 +59,22 @@ public class VideoStreamSecondProcessing implements Runnable {
 //    private boolean imgFlagProg = false;
 
     public VideoStreamSecondProcessing(){
-        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        //URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
         params_properties = new Properties();
-        FileInputStream fis_prm;
-        try{
-            fis_prm = new FileInputStream(url_params.getFile());
-            params_properties.load(fis_prm);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_params_prop)) {
+            params_properties.load(inputStream);
         } catch (IOException e) {
+            logger.error("Reading error params_system.properties for videoSecond", e);
             throw new RuntimeException(e);
         }
+//        try{
+//            fis_prm = new FileInputStream(url_params.getFile());
+//            params_properties.load(fis_prm);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         try{
             minHeight = Integer.parseInt(params_properties.getProperty("video_second.min_height"));
             minWight = Integer.parseInt(params_properties.getProperty("video_second.min_wight"));
@@ -80,20 +82,25 @@ public class VideoStreamSecondProcessing implements Runnable {
             yCutDown = Integer.parseInt(params_properties.getProperty("video_second.y_cut_down"));
             yCutTop = Integer.parseInt(params_properties.getProperty("video_second.y_cut_top"));
         }catch (Exception e){
-            logger.error("Ошибка чтения params_system.properties для videoSecond, установлены значения по умолчанию", e);
+            logger.error("Reading error params_system.properties for videoSecond, the default values are set", e);
         }
 
-        URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
+        //URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
         img_properties = new Properties();
-        FileInputStream fis_img;
-        try{
-            fis_img = new FileInputStream(url_img.getFile());
-            img_properties.load(fis_img);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_img_prop)) {
+            img_properties.load(inputStream);
         } catch (IOException e) {
+            logger.error("Reading error images.properties for videoSecond", e);
             throw new RuntimeException(e);
         }
+//        try{
+//            fis_img = new FileInputStream(url_img.getFile());
+//            img_properties.load(fis_img);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         try{
             imgFlagBlur = Boolean.parseBoolean(img_properties.getProperty("flag.blur"));
             imgFlagDiff = Boolean.parseBoolean(img_properties.getProperty("flag.diff"));
@@ -102,14 +109,14 @@ public class VideoStreamSecondProcessing implements Runnable {
             dirDiffName = img_properties.getProperty("dir_img.diff");
         }
         catch (Exception e){
-            logger.error("Ошибка чтения images.properties, установлены значения по умолчанию", e);
+            logger.error("Reading error images.properties for videoSecond, the default values are set", e);
         }
 
-        File dirImg = new File("ImgProg");
-        if(!dirImg.exists()){
-            dirImg.mkdir();
-            logger.info("Создание папки " + dirImg.getName());
-        }
+//        File dirImg = new File("ImgProg");
+//        if(!dirImg.exists()){
+//            dirImg.mkdir();
+//            logger.info("Создание папки " + dirImg.getName());
+//        }
         frame = new Mat();
         rectFrame = new Mat();
         prevFrame = new Mat();
@@ -121,7 +128,7 @@ public class VideoStreamSecondProcessing implements Runnable {
         threadImage = new Thread(imageProcessing);
         threadImage.start();
 
-        logger.info("Параметры videoSecond: min_height = " + minHeight +", min_wight = " + minWight + ", threshold_second = " + thresholdSecond + ", y_cut_top = " + yCutTop + ", y_cut_down = " + yCutDown);
+        logger.info("Params of videoSecond: min_height = " + minHeight +", min_wight = " + minWight + ", threshold_second = " + thresholdSecond + ", y_cut_top = " + yCutTop + ", y_cut_down = " + yCutDown);
     }
 //    private Mat getOneCol(Mat frame){
 //        Mat oneCol = new Mat(frame.rows(), 1, CvType.CV_8UC1);
@@ -164,7 +171,7 @@ public class VideoStreamSecondProcessing implements Runnable {
     public void run(){
         int i = 0;
         //int sleeping = 0;
-        logger.info("Попытка запуска потока threadSecond");
+        logger.info("Launch attempt threadSecond stream");
         while (isActive) {
             Container2Mat grayAndPrevGrayImages;
             while ((grayAndPrevGrayImages = images.poll()) != null) {
@@ -217,21 +224,21 @@ public class VideoStreamSecondProcessing implements Runnable {
                         new Scalar(0, 0, 255), 2);
                 //Imgproc.resize(frame, frame, new Size(640, 480));
                 if (isTrueSize(frag)) {
-                    logger.info("Достаточный размер фрагмента в threadSecond");
+                    logger.info("A fragment of the required size in threadSecond stream");
                     //String path = "";
-                    try {
+//                    try {
 //                        path = dirImg + File.separator + "1-" + nameImg;
 //                        File file1 = new File(path);
 //                        path = dirImg + File.separator + "2-" + nameImg;
 //                        File file2 = new File(path);
                         //Imgcodecs.imwrite(file1.getCanonicalPath(), frame);
-                        Container2Mat fullAndFragImages = new Container2Mat(frame, frag, dateImg);
-                        imageProcessing.toAddImg(fullAndFragImages);
+                    Container2Mat fullAndFragImages = new Container2Mat(frame, frag, dateImg);
+                    imageProcessing.toAddImg(fullAndFragImages);
 //                        Imgcodecs.imwrite(file2.getCanonicalPath(), frag);
-                    } catch (Exception e) {
-                        logger.error("Ошибка записи файла", e);
-                        //System.out.println(path + "\n" + e.getMessage());
-                    }
+//                    } catch (Exception e) {
+//                        logger.error("Error", e);
+//                        //System.out.println(path + "\n" + e.getMessage());
+//                    }
                 }
             }
         }
@@ -239,12 +246,12 @@ public class VideoStreamSecondProcessing implements Runnable {
         try {
             stop();
         } catch (InterruptedException e) {
-            logger.error("Ошибка завершения потока videoSecond", e);
-            System.out.println("Stop Except");
+            logger.error("Completion error videoSecond stream", e);
+            //System.out.println("Stop Except");
             throw new RuntimeException(e);
         }
-        logger.info("Поток videoSecond завершен");
-        System.out.println("Video2Thr is finished");
+        logger.info("The videoSecond stream is closed");
+        //System.out.println("Video2Thr is finished");
 
     }
 

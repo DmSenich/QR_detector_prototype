@@ -10,11 +10,7 @@ import org.opencv.imgproc.Imgproc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URL;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
@@ -54,26 +50,32 @@ public class VideoStreamFirstProcessing implements Runnable {
 //    private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
+    //todo Чтение properties
     public VideoStreamFirstProcessing(FFmpegFrameGrabber camera){
         this.camera = camera;
 
-        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        //URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
         params_properties = new Properties();
-        FileInputStream fis_prm;
-        try{
-            fis_prm = new FileInputStream(url_params.getFile());
-            params_properties.load(fis_prm);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_params_prop)) {
+            params_properties.load(inputStream);
         } catch (IOException e) {
+            logger.error("Reading error params_system.properties for videoFirst stream", e);
             throw new RuntimeException(e);
         }
+//        try{
+//            fis_prm = new FileInputStream(url_params.getFile());
+//            params_properties.load(fis_prm);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         try{
             timeCheck = Integer.parseInt(params_properties.getProperty("video_first.time_check"));
             thresholdFirst = Double.parseDouble(params_properties.getProperty("video_first.threshold"));
             firstCheckPosition = Double.parseDouble(params_properties.getProperty("video_first.first_check_position"));
         }catch (Exception e){
-            logger.error("Ошибка чтения params_system.properties для videoFirst, установлены значения по умолчанию", e);
+            logger.error("Reading error params_system.properties for videoFirst stream, the default values are set", e);
         }
 
 //        try {
@@ -82,11 +84,11 @@ public class VideoStreamFirstProcessing implements Runnable {
 //            System.out.println("Camera not found");
 //            throw new RuntimeException(e);
 //        }
-        File dirImg = new File("ImgProc");
-        if(!dirImg.exists()){
-            dirImg.mkdir();
-            logger.info("Создание папки " + dirImg.getName());
-        }
+//        File dirImg = new File("ImgProc");
+//        if(!dirImg.exists()){
+//            dirImg.mkdir();
+//            logger.info("Создание папки " + dirImg.getName());
+//        }
         converter = new OpenCVFrameConverter.ToMat();
 //        frame = new Mat();
 //        rectFrame = new Mat();
@@ -103,7 +105,7 @@ public class VideoStreamFirstProcessing implements Runnable {
         videoStreamSecondProcessing = new VideoStreamSecondProcessing();
         threadVideo2 = new Thread(videoStreamSecondProcessing);
         threadVideo2.start();
-        logger.info("Параметры videoFirst: time_check = " + timeCheck +", threshold = " + thresholdFirst + ", first_check_position = " + firstCheckPosition);
+        logger.info("Params of videoFirst: time_check = " + timeCheck +", threshold = " + thresholdFirst + ", first_check_position = " + firstCheckPosition);
     }
     private Mat getOneCol(Mat frame){
         Mat oneCol = new Mat(frame.rows(), 1, CvType.CV_8UC1);
@@ -141,17 +143,17 @@ public class VideoStreamFirstProcessing implements Runnable {
 
     @Override
     public void run(){
-        logger.info("Попытка запуска потока threadFirst");
+        logger.info("Launch attempt threadFirst stream");
         try {
             camera.start();
-            logger.info("Попытка чтения видеопотока");
+            logger.info("Launch attempt VideoStream");
 
         } catch (FFmpegFrameGrabber.Exception e) {
-            logger.error("Ошибка чтения видеопотока", e);
+            logger.error("Reading error VideoStream", e);
             throw new RuntimeException(e);
         }
 
-        logger.info("Чтение видеопотока");
+        logger.info("Reading VideoStream");
         ///
         int i = 0;
         //int sleeping = 0;
@@ -160,7 +162,7 @@ public class VideoStreamFirstProcessing implements Runnable {
             try {
                 grabbedFrame = camera.grabImage();
             } catch (FFmpegFrameGrabber.Exception e) {
-                logger.error("Ошибка получения кадра из видеопотока", e);
+                logger.error("Error receiving a frame from the VideoStream", e);
                 throw new RuntimeException(e);
             }
             if (grabbedFrame != null) {
@@ -169,7 +171,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 //                    continue;
 //                }
 
-
+                Date dateImg = new Date();
                 int height = grabbedFrame.imageHeight;
                 int width = grabbedFrame.imageWidth;
 
@@ -187,13 +189,8 @@ public class VideoStreamFirstProcessing implements Runnable {
                 Mat frame = new Mat(height, width, CvType.CV_8UC3);
 
                 frame.put(0, 0, buffer);
-
-
-
-
-                Date dateImg = new Date();
-                SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
-                String nameImg = formater.format(dateImg) +".png";
+                //SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
+                //String nameImg = formater.format(dateImg) +".png";
                 Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
                 Imgproc.GaussianBlur(grayFrame, grayFrame, new Size(9, 9), 0);
 
@@ -231,8 +228,8 @@ public class VideoStreamFirstProcessing implements Runnable {
                         Container2Mat greyAndPrevGrey = new Container2Mat(grayFrame, grayPrevFrame, frame, dateImg);
                         videoStreamSecondProcessing.toAddImages(greyAndPrevGrey);
                         //*
-                        logger.info("Замечено движение");
-                        System.out.println("Frame " + frameCount + " is significantly different");
+                        logger.info("Movement detected");
+                        //System.out.println("Frame " + frameCount + " is significantly different");
                     }
                 }
                 grayPrevFrame = grayFrame.clone();
@@ -246,13 +243,14 @@ public class VideoStreamFirstProcessing implements Runnable {
                     }
                 }
             } else {
-                System.out.println("Frame not captured");
-                logger.info("Потеря кадра");
+                //System.out.println("Frame not captured");
+                logger.info("VideoStream is lost");
                 try {
                     camera.stop();
                     camera.start();
+                    logger.info("Restoring the VideoStream");
                 } catch (FFmpegFrameGrabber.Exception e) {
-                    logger.error("Ошибка восстановления видеопотока", e);
+                    logger.error("Restoring error the VideoStream", e);
                     throw new RuntimeException(e);
                 }
             }
@@ -261,15 +259,15 @@ public class VideoStreamFirstProcessing implements Runnable {
         try {
             stop();
         } catch (InterruptedException e) {
-            System.out.println("Stop Except");
-            logger.error("Ошибка завершения потока videoFirst", e);
+            //System.out.println("Stop Except");
+            logger.error("Completion error videoFirst stream", e);
             throw new RuntimeException(e);
         } catch (FFmpegFrameGrabber.Exception e) {
-            logger.error("Ошибка завершения потока videoFirst", e);
+            logger.error("Completion error videoFirst stream", e);
             throw new RuntimeException(e);
         }
-        logger.info("Поток videoFirst завершен");
-        System.out.println("Video1Thr is finished");
+        logger.info("The videoFirst stream is closed");
+        //System.out.println("Video1Thr is finished");
     }
 
     public void stop() throws InterruptedException, FFmpegFrameGrabber.Exception {
@@ -277,7 +275,7 @@ public class VideoStreamFirstProcessing implements Runnable {
         videoStreamSecondProcessing.toDisable();
         threadVideo2.join();
         camera.stop();
-        logger.info("Камера закрыта");
+        logger.info("Camera is closed");
     }
 
     public void toDisable() {

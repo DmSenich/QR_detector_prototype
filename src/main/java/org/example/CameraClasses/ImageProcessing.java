@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
@@ -44,7 +43,7 @@ public class ImageProcessing implements Runnable{
 //    private volatile Queue<Mat> imagesQ = new LinkedList<>();
 //    private volatile Queue<Mat> framesQ = new LinkedList<>();
 
-    private String cash = "";
+    private String currentCode = "";
     private int valueThresh = 190;
     private int valueMedianBlur = 29;
     private int timeCheck = 3000;
@@ -59,36 +58,46 @@ public class ImageProcessing implements Runnable{
     private boolean imgFlagProg = false;
 
     public ImageProcessing(){
-        URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
+        //URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
         params_properties = new Properties();
-        FileInputStream fis_prm;
-        try{
-            fis_prm = new FileInputStream(url_params.getFile());
-            params_properties.load(fis_prm);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_params_prop)) {
+            params_properties.load(inputStream);
         } catch (IOException e) {
+            logger.error("Reading error params_system.properties for videoSecond", e);
             throw new RuntimeException(e);
         }
+//        try{
+//            fis_prm = new FileInputStream(url_params.getFile());
+//            params_properties.load(fis_prm);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         try{
             valueThresh = Integer.parseInt(params_properties.getProperty("image_process.threshold"));
             valueMedianBlur = Integer.parseInt(params_properties.getProperty("image_process.median_blur"));
             timeCheck = Integer.parseInt(params_properties.getProperty("image_process.time_check"));
         }catch (Exception e){
-            logger.error("Ошибка чтения params_system.properties для videoSecond, установлены значения по умолчанию", e);
+            logger.error("Reading error params_system.properties for imageProcessing, the default values are set", e);
         }
 
-        URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
+        //URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
         img_properties = new Properties();
-        FileInputStream fis_img;
-        try{
-            fis_img = new FileInputStream(url_img.getFile());
-            img_properties.load(fis_img);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+        try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_img_prop)) {
+            img_properties.load(inputStream);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+//        try{
+//            fis_img = new FileInputStream(url_img.getFile());
+//            img_properties.load(fis_img);
+//        } catch (FileNotFoundException e) {
+//            throw new RuntimeException(e);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         try{
             imgFlagFull = Boolean.parseBoolean(img_properties.getProperty("flag.full"));
             imgFlagProg = Boolean.parseBoolean(img_properties.getProperty("flag.prog"));
@@ -102,7 +111,7 @@ public class ImageProcessing implements Runnable{
             dirBinaryName = img_properties.getProperty("dir_img.binary");
         }
         catch (Exception e){
-            logger.error("Ошибка чтения images.properties, установлены значения по умолчанию", e);
+            logger.error("Reading error images.properties for imageProcessing, the default values are set", e);
         }
 
         dirImg = new File(dirProgName);
@@ -115,7 +124,7 @@ public class ImageProcessing implements Runnable{
             dirQRImg.mkdir();
             logger.info("Создание папки " + dirQRImg.getName());
         }
-        logger.info("Параметры imageProcessing: time_check = " + timeCheck +", valueThresh = " + valueThresh + ", valueMedianBlur = " + valueMedianBlur);
+        logger.info("Params of imageProcessing stream: time_check = " + timeCheck +", valueThresh = " + valueThresh + ", valueMedianBlur = " + valueMedianBlur);
     }
     @Override
     public void run() {
@@ -152,7 +161,7 @@ public class ImageProcessing implements Runnable{
 //                    continue;
 //                }
                 if(image.empty()){
-                    logger.info("Очередь в imageProcessing пустая");
+                    logger.info("ImageProcessing queue is empty");
                     //break;
                     continue;
                 }
@@ -165,7 +174,7 @@ public class ImageProcessing implements Runnable{
                     try {
                         Imgcodecs.imwrite(dirImg.getCanonicalPath() + File.separator + nameImg, image);
                     } catch (IOException e) {
-                        System.out.println("Not dirImg");
+                        //System.out.println("Not dirImg");
                         continue;
                     }
                     ///
@@ -185,7 +194,7 @@ public class ImageProcessing implements Runnable{
                         }
                         Imgcodecs.imwrite(dirFiltered.getCanonicalPath() + File.separator + nameImg, matFiltered);
                     } catch (IOException e) {
-                        System.out.println("Not dirFiltered");
+                        //System.out.println("Not dirFiltered");
                         continue;
                     }
                     ///
@@ -205,7 +214,7 @@ public class ImageProcessing implements Runnable{
                         }
                         Imgcodecs.imwrite(dirBinary.getCanonicalPath() + File.separator + nameImg, matBynary);
                     } catch (IOException e) {
-                        System.out.println("Not dirBinary");
+                        //System.out.println("Not dirBinary");
                         continue;
                     }
                     ///
@@ -216,7 +225,7 @@ public class ImageProcessing implements Runnable{
                 try {
                     if(fragmentQR.empty()){
                         //break;
-                        logger.info("Фрагмент пуст");
+                        logger.info("Fragment is empty");
                         continue;
                     }
                     Imgcodecs.imwrite(qrFile.getCanonicalPath(),fragmentQR);
@@ -225,22 +234,25 @@ public class ImageProcessing implements Runnable{
                     continue;
                 }
                 if(toReadQR(qrPath)){
-                    logger.info("QR-код успешно считан: " + cash);
-                    toSaveQR(cash, dateImg);
+                    logger.info("The QR-code is successfully read: " + currentCode);
+                    toSaveQR(currentCode, dateImg);
                     if(imgFlagFull){
                         File dirFullFrame = new File(dirFullName);
                         if(!dirFullFrame.exists()){
                             dirFullFrame.mkdir();
                         }
                         try {
-                            logger.info("Запись полного кадра");
+                            logger.info("Save full frame");
                             Imgcodecs.imwrite(dirFullFrame.getCanonicalPath() + File.separator + "full-" + nameImg, fullImage);
                         } catch (IOException e) {
-                            logger.error("Ошибка записи полного кадра", e);
+                            logger.error("Saving error full frame", e);
                             System.out.println("Not dirFull");
                             continue;
                         }
                     }
+                }
+                if(!imgFlagQR){
+                    qrFile.delete();
                 }
 
                 //fileImg.delete();
@@ -254,8 +266,8 @@ public class ImageProcessing implements Runnable{
 
             //sleeping = sleepCount;
         }
-        logger.info("Завершен поток imageProcessing");
-        System.out.println("ImageThr is finished");
+        logger.info("ImageProcessing stream is closed");
+        //System.out.println("ImageThr is finished");
 
     }
 
@@ -272,7 +284,7 @@ public class ImageProcessing implements Runnable{
         ///
 //        imagesQ.add(img);
 //        framesQ.add(frame);
-        logger.info("Внесение данных в очередь imageProcessing");
+        logger.info("Adding data in queue of imageProcessing");
         images.add(imgs);
     }
 
@@ -284,7 +296,7 @@ public class ImageProcessing implements Runnable{
         Mat matFiltered = new Mat();
         Imgproc.cvtColor(matFragment, matFiltered, Imgproc.COLOR_BGR2GRAY);
         Imgproc.medianBlur(matFiltered, matFiltered, valueMedianBlur);
-        logger.info("Медианная фильтрация в imageProcessing");
+        logger.info("Median filter in imageProcessing");
         return matFiltered;
     }
 
@@ -307,14 +319,14 @@ public class ImageProcessing implements Runnable{
 //            ///
 //        }
         Imgproc.medianBlur(matBynary, matBynary, valueMedianBlur);
-        logger.info("Бинаризация в imageProcessing");
+        logger.info("Binarization in imageProcessing");
         return matBynary;
     }
 
     private Mat toFindWhiteContour(Mat original,Mat matBynary){
         Rect boundingRect = Imgproc.boundingRect(matBynary);
         Mat matQRFragment = new Mat(original, boundingRect);
-        logger.info("Поиск светлой области");
+        logger.info("Search white fragment");
         return matQRFragment;
     }
 
@@ -324,9 +336,9 @@ public class ImageProcessing implements Runnable{
             BufferedImage readerImage = ImageIO.read(new FileInputStream(path));
             BinaryBitmap binaryBitmap = new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(readerImage)));
             Result resultObj = new MultiFormatReader().decode(binaryBitmap);
-            if(resultObj != null && resultObj.getText() != null && !resultObj.getText().equals(cash)){
+            if(resultObj != null && resultObj.getText() != null && !resultObj.getText().equals(currentCode)){
                 //toSaveQR(resultObj.getText());
-                cash = resultObj.getText();
+                currentCode = resultObj.getText();
             }
             else{
                 res = false;
