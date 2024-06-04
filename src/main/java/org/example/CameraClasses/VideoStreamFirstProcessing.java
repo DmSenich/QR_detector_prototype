@@ -34,13 +34,17 @@ public class VideoStreamFirstProcessing implements Runnable {
     private Mat diffFrame;
     private Mat grayFrame;
     private Mat grayPrevFrame;
-    private double thresholdFirst = 40.0;
-    private int timeCheck = 200;
-    private double firstCheckPosition = 0.75;
+    private final double constThresholdFirst = 35.0;
+    private final int constTimeCheck = 200;
+    private final double constFirstCheckPosition = 0.70;
+    private double thresholdFirst;
+    private int timeCheck;
+    private double firstCheckPosition;
 //    private final double thresholdSecond = 120.0;
 //    private final long minSquare = 1400 * 700;
-    private int frameCount = 0;
-    private final int numOfEveryFrame = 5;
+
+    //private int frameCount = 0;
+    //private final int numOfEveryFrame = 5;
 
     private volatile boolean isActive = true;
 
@@ -50,7 +54,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 //    private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
-    //todo Чтение properties
+
     public VideoStreamFirstProcessing(FFmpegFrameGrabber camera){
         this.camera = camera;
 
@@ -74,8 +78,17 @@ public class VideoStreamFirstProcessing implements Runnable {
             timeCheck = Integer.parseInt(params_properties.getProperty("video_first.time_check"));
             thresholdFirst = Double.parseDouble(params_properties.getProperty("video_first.threshold"));
             firstCheckPosition = Double.parseDouble(params_properties.getProperty("video_first.first_check_position"));
+            if(timeCheck <= 0 || Double.compare(thresholdFirst, 0) <= 0  || Double.compare(firstCheckPosition, 0) <= 0 || Double.compare(firstCheckPosition, 1) > 1){
+                timeCheck = constTimeCheck;
+                thresholdFirst = constThresholdFirst;
+                firstCheckPosition = constFirstCheckPosition;
+                logger.info("Invalid params params_system.properties for videoFirst stream, the default values are set");
+            }
         }catch (Exception e){
             logger.error("Reading error params_system.properties for videoFirst stream, the default values are set", e);
+            timeCheck = constTimeCheck;
+            thresholdFirst = constThresholdFirst;
+            firstCheckPosition = constFirstCheckPosition;
         }
 
 //        try {
@@ -155,7 +168,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 
         logger.info("Reading VideoStream");
         ///
-        int i = 0;
+//        int i = 0;
         //int sleeping = 0;
         while (isActive) {
             Frame grabbedFrame = null;
@@ -196,7 +209,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 
                 if (grayPrevFrame.empty()) {
                     grayPrevFrame = grayFrame.clone();
-                    frameCount++;
+                    //frameCount++;
                     continue;
                 } else{
 //                    System.out.println("No sleep");
@@ -233,7 +246,7 @@ public class VideoStreamFirstProcessing implements Runnable {
                     }
                 }
                 grayPrevFrame = grayFrame.clone();
-                frameCount++;
+                //frameCount++;
                 synchronized (this) {
                     try {
 //                        Thread.sleep(200);
@@ -244,11 +257,11 @@ public class VideoStreamFirstProcessing implements Runnable {
                 }
             } else {
                 //System.out.println("Frame not captured");
-                logger.info("VideoStream is lost");
+//                logger.info("VideoStream is lost");
                 try {
                     camera.stop();
                     camera.start();
-                    logger.info("Restoring the VideoStream");
+//                    logger.info("Restoring the VideoStream");
                 } catch (FFmpegFrameGrabber.Exception e) {
                     logger.error("Restoring error the VideoStream", e);
                     throw new RuntimeException(e);

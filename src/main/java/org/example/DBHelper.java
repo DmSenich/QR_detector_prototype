@@ -1,5 +1,8 @@
 package org.example;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -11,6 +14,7 @@ import java.util.Date;
 import java.util.Properties;
 
 public final class DBHelper {
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
     static String DB_URL;
     static String DB_NAME;
     static String LOGIN;
@@ -29,6 +33,7 @@ public final class DBHelper {
         try(InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(url_prop)) {
             properties.load(inputStream);
         } catch (IOException e) {
+            logger.error("Reading error database.properties", e);
             throw new RuntimeException(e);
         }
 
@@ -46,19 +51,20 @@ public final class DBHelper {
         LOGIN = properties.getProperty("sql.login");
         PASSWORD = properties.getProperty("sql.password");
         TABLE = properties.getProperty("sql.table_name");
+        logger.info("Initialization");
         Connection connection;
         try {
             connection = DriverManager.getConnection(DB_URL + DB_NAME, LOGIN, PASSWORD);
-            Statement statement = null;
-            statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery("select * from first");
-            if(resultSet != null){
-                System.out.println("Прочитаны данные");
-            }
+//            Statement statement = connection.createStatement();
+//            ResultSet resultSet = statement.executeQuery("select * from first");
+//            if(resultSet != null){
+//                System.out.println("Прочитаны данные");
+//            }
             connection.close();
             tableExist();
             res = true;
         }catch (SQLException e) {
+            logger.error("SQL connection error", e);
             throw new RuntimeException(e);
         }
         return res;
@@ -70,6 +76,7 @@ public final class DBHelper {
             Statement statement = connection.createStatement();
             statement.executeUpdate(sql_table);
         } catch (SQLException e) {
+            logger.error("SQL statement error", e);
             throw new RuntimeException(e);
         }
 
@@ -84,8 +91,10 @@ public final class DBHelper {
             statement.setTimestamp( 1, timestamp);
             statement.setString(2, qrcode);
             statement.executeUpdate();
-            System.out.println("Новая запись");
+            logger.info("New record");
+            //System.out.println("Новая запись");
         } catch (SQLException e) {
+            logger.error("SQL insert error", e);
             throw new RuntimeException(e);
         }
     }

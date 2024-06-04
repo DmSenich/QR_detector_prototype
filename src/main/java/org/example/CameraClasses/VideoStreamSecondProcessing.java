@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
@@ -28,18 +31,22 @@ public class VideoStreamSecondProcessing implements Runnable {
     ImageProcessing imageProcessing;
     Thread threadImage;
     private Mat frame;
-    private Mat rectFrame;
-    private Mat prevFrame;
+//    private Mat rectFrame;
+//    private Mat prevFrame;
     private Mat diffFrame;
     private Mat grayFrame;
     private Mat grayPrevFrame;
 //    private final double thresholdFirst = 35.0;
-    private double thresholdSecond = 120.0;
+    private final double constThresholdSecond = 120.0;
+    private final int constMinHeight = 500, constMinWight = 1100;
+    private final int constYCutTop = 140, constYCutDown = 200;
+    private double thresholdSecond;
     //private final long minSquare = 1300 * 600;
-    private int minHeight = 500, minWight = 1100;
-    private int yCutTop = 140, yCutDown = 200;
-    private int frameCount = 0;
-    private final int numOfEveryFrame = 5;
+
+    private int minHeight, minWight;
+    private int yCutTop, yCutDown;
+    //private int frameCount = 0;
+    //private final int numOfEveryFrame = 5;
 
     private volatile boolean isActive = true;
 
@@ -50,12 +57,17 @@ public class VideoStreamSecondProcessing implements Runnable {
     //private final int sleepCount = 2400;
     private CountDownLatch countDownLatch = new CountDownLatch(1);
 
-    private String dirBlurName = "ImgBlur";
-    private String dirDiffName = "ImgDiff";
-    private String dirProgName = "ImgProc";
+    private final String constDirBlurName = "ImgBlur";
+    private final String constDirDiffName = "ImgDiff";
+    private String dirBlurName;
+    private String dirDiffName;
+    private String pathBlur;
+    private String pathDiff;
+//    private String dirProgName = "ImgProc";
     private boolean imgFlagBlur = false;
 
     private boolean imgFlagDiff = false;
+
 //    private boolean imgFlagProg = false;
 
     public VideoStreamSecondProcessing(){
@@ -81,8 +93,21 @@ public class VideoStreamSecondProcessing implements Runnable {
             thresholdSecond = Double.parseDouble(params_properties.getProperty("video_second.threshold"));
             yCutDown = Integer.parseInt(params_properties.getProperty("video_second.y_cut_down"));
             yCutTop = Integer.parseInt(params_properties.getProperty("video_second.y_cut_top"));
+            if(minHeight <= 0 || minWight <= 0 || Double.compare(thresholdSecond, 0) <= 0 || yCutTop < 0 || yCutDown < 0){
+                minHeight = constMinHeight;
+                minWight = constMinWight;
+                thresholdSecond = constThresholdSecond;
+                yCutDown = constYCutDown;
+                yCutTop = constYCutTop;
+                logger.info("Invalid params params_system.properties for videoSecond, the default values are set");
+            }
         }catch (Exception e){
             logger.error("Reading error params_system.properties for videoSecond, the default values are set", e);
+            minHeight = constMinHeight;
+            minWight = constMinWight;
+            thresholdSecond = constThresholdSecond;
+            yCutDown = constYCutDown;
+            yCutTop = constYCutTop;
         }
 
         //URL url_img = Main.class.getClassLoader().getResource(url_img_prop);
@@ -104,13 +129,56 @@ public class VideoStreamSecondProcessing implements Runnable {
         try{
             imgFlagBlur = Boolean.parseBoolean(img_properties.getProperty("flag.blur"));
             imgFlagDiff = Boolean.parseBoolean(img_properties.getProperty("flag.diff"));
-//            imgFlagProg = Boolean.parseBoolean(img_properties.getProperty("flag.prog"));
-            dirBlurName = img_properties.getProperty("dir_img.blur");
-            dirDiffName = img_properties.getProperty("dir_img.diff");
         }
         catch (Exception e){
-            logger.error("Reading error images.properties for videoSecond, the default values are set", e);
+            logger.error("Reading flags error images.properties for videoSecond, the default values are set", e);
         }
+        if(imgFlagDiff){
+            try{
+                dirDiffName = img_properties.getProperty("dir_img.diff");
+                pathDiff = img_properties.getProperty("path_img.diff");
+                Path pDiff = Paths.get(pathDiff);
+                Path fullPathDiff = pDiff.resolve(dirDiffName);
+                File fileDiff = new File(pathDiff);
+                if(fileDiff.exists()){
+                    File fullFileDiff = new File(fullPathDiff.toString());
+                    if(!fullFileDiff.exists()){
+                        fullFileDiff.mkdir();
+                    }
+                    dirDiffName = fullFileDiff.getCanonicalPath();
+                }else {
+                    logger.info("Invalid path for Diff images.properties for videoSecond, values are set '' ");
+                }
+            }
+            catch (Exception e){
+                logger.error("Reading dir Diff error images.properties for videoSecond, the default values are set", e);
+                dirDiffName = constDirDiffName;
+            }
+        }
+        if(imgFlagBlur){
+            try{
+                dirBlurName = img_properties.getProperty("dir_img.blur");
+                pathBlur = img_properties.getProperty("path_img.blur");
+                Path pBlur = Paths.get(pathBlur);
+                Path fullPathBlur = pBlur.resolve(dirBlurName);
+
+                File fileBlur = new File(pathBlur);
+                if(fileBlur.exists()){
+                    File fullFileBlur = new File(fullPathBlur.toString());
+                    if(!fullFileBlur.exists()){
+                        fullFileBlur.mkdir();
+                    }
+                    dirBlurName = fullFileBlur.getCanonicalPath();
+                }else {
+                    logger.info("Invalid path Blur images.properties for videoSecond, values are set '' ");
+                }
+            }
+            catch (Exception e){
+                logger.error("Reading dir Blur error images.properties for videoSecond, the default values are set", e);
+                dirBlurName = constDirBlurName;
+            }
+        }
+
 
 //        File dirImg = new File("ImgProg");
 //        if(!dirImg.exists()){
@@ -118,8 +186,8 @@ public class VideoStreamSecondProcessing implements Runnable {
 //            logger.info("Создание папки " + dirImg.getName());
 //        }
         frame = new Mat();
-        rectFrame = new Mat();
-        prevFrame = new Mat();
+//        rectFrame = new Mat();
+//        prevFrame = new Mat();
         diffFrame = new Mat();
         grayFrame = new Mat();
         grayPrevFrame = new Mat();
@@ -139,6 +207,10 @@ public class VideoStreamSecondProcessing implements Runnable {
 //    }
 
     private Mat getCutedFrame(Mat frame){
+        if(yCutTop + yCutDown >= frame.height()){
+            yCutTop = constYCutTop;
+            yCutDown = constYCutDown;
+        }
         Mat cuted = new Mat(frame, new Rect(0, yCutTop, frame.width(), frame.height() - yCutTop - yCutDown));
         return cuted;
     }
@@ -169,13 +241,13 @@ public class VideoStreamSecondProcessing implements Runnable {
 
     @Override
     public void run(){
-        int i = 0;
+//        int i = 0;
         //int sleeping = 0;
         logger.info("Launch attempt threadSecond stream");
         while (isActive) {
             Container2Mat grayAndPrevGrayImages;
             while ((grayAndPrevGrayImages = images.poll()) != null) {
-                SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
+                SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
                 Date dateImg = grayAndPrevGrayImages.getDate();
                 String nameImg = formater.format(dateImg) +".png";
                 //String nameImg = grayAndPrevGrayImages.getName();
@@ -195,7 +267,7 @@ public class VideoStreamSecondProcessing implements Runnable {
                     try {
                         Imgcodecs.imwrite(dirImgBlur.getCanonicalPath() + File.separator + nameImg, grayFrame);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        logger.error("Saving error blur img", e);
                     }
                     ///
                 }
@@ -212,7 +284,7 @@ public class VideoStreamSecondProcessing implements Runnable {
                     try {
                         Imgcodecs.imwrite(dirDiff.getCanonicalPath() + File.separator + nameImg, diffFrame);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        logger.error("Saving error diff img", e);;
                     }
                     ///
                 }
