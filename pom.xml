@@ -52,7 +52,7 @@
 <!--        </dependency>-->
 
 
-        <!-- https://mvnrepository.com/artifact/org.bytedeco/javacv-platform -->
+        <!-- https://mvnrepository.com/artifact/org.bytedeco/javacv-platform  9-->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>javacv-platform</artifactId>

@@ -19,9 +19,9 @@ import java.util.Scanner;
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 //    static VideoCapture camera;
-    static VideoStreamFirstProcessing videoStreamProcessing;
-    static Thread threadVideo;
-    private static String url_system_prop = "params_system.properties";
+    private static VideoStreamFirstProcessing videoStreamProcessing;
+    private static Thread threadVideo;
+    private static final String url_system_prop = "params_system.properties";
     private static String pathVideo;
     static {
         OpenCV.loadLocally();
@@ -73,8 +73,8 @@ public class Main {
 //        AVUtil.av_log_set_level(AVUtil.AV_LOG_ERROR);
         av_log_set_level(AV_LOG_QUIET);
         FFmpegFrameGrabber camera = new FFmpegFrameGrabber(pathVideo);
-        camera.setOption("rtsp_transport", "tcp");
-        camera.setOption("stimeout", "5000");
+//        camera.setOption("rtsp_transport", "tcp");
+//        camera.setOption("stimeout", "5000");
         camera.setFrameRate(10);
 
 //        camera = new VideoCapture(pathVideo); //для исползования файла видео

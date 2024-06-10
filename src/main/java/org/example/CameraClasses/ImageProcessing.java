@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -68,6 +67,12 @@ public class ImageProcessing implements Runnable{
     private boolean imgFlagBinary = false;
     private boolean imgFlagFiltered = false;
     private boolean imgFlagProg = false;
+
+    private Mat fullImage;
+    private Mat image;
+    private Mat matFiltered;
+    private Mat matBinary;
+    private Mat fragmentQR;
 
     public ImageProcessing(){
         //URL url_params = Main.class.getClassLoader().getResource(url_params_prop);
@@ -130,6 +135,22 @@ public class ImageProcessing implements Runnable{
             logger.error("Reading error images.properties for imageProcessing, the default values are set", e);
         }
 
+        toInitPathsAndDirs();
+
+        fullImage = new Mat();
+        image = new Mat();
+        matFiltered = new Mat();
+        matBinary = new Mat();
+        fragmentQR = new Mat();
+
+//        if(!tempDirQRImg.exists()){
+//            tempDirQRImg.mkdir();
+//            logger.info("Create directory: " + tempDirQRImg.getName());
+//        }
+        logger.info("Params of imageProcessing stream: time_check = " + timeCheck +", valueThresh = " + valueThresh + ", valueMedianBlur = " + valueMedianBlur);
+    }
+
+    private void toInitPathsAndDirs() {
         // imgFlagFull
         if (imgFlagFull) {
             try {
@@ -244,17 +265,16 @@ public class ImageProcessing implements Runnable{
                 dirBinaryName = constDirBinaryName;
             }
         }
-
-
-//        if(!tempDirQRImg.exists()){
-//            tempDirQRImg.mkdir();
-//            logger.info("Create directory: " + tempDirQRImg.getName());
-//        }
-        logger.info("Params of imageProcessing stream: time_check = " + timeCheck +", valueThresh = " + valueThresh + ", valueMedianBlur = " + valueMedianBlur);
     }
+
     @Override
     public void run() {
         //int sleeping = 0;
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException in second", e);
+        }
         while (isActive){
 //            if(sleeping > 0){
 //                sleeping--;
@@ -270,8 +290,8 @@ public class ImageProcessing implements Runnable{
             Container2Mat fullAndFragImages;
             while ((fullAndFragImages = images.poll()) != null) {
 //                (image = imagesQ.poll()) != null
-                Mat fullImage = fullAndFragImages.getFirst();
-                Mat image = fullAndFragImages.getSecond();
+                fullImage = fullAndFragImages.getFirst();
+                image = fullAndFragImages.getSecond();
                 Date dateImg = fullAndFragImages.getDate();
                 SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
                 String nameImg = formater.format(dateImg) +".png";
@@ -288,6 +308,8 @@ public class ImageProcessing implements Runnable{
 //                }
                 if(image.empty()){
                     logger.info("ImageProcessing queue is empty");
+                    image.release();
+                    fullImage.release();
                     //break;
                     continue;
                 }
@@ -307,7 +329,7 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat matFiltered = toMedianFilter(image);
+                matFiltered = toMedianFilter(image);
 
                 if(imgFlagFiltered) {
                     ///
@@ -317,6 +339,9 @@ public class ImageProcessing implements Runnable{
                     }
                     try {
                         if (matFiltered.empty()) {
+                            matFiltered.release();
+                            image.release();
+                            fullImage.release();
                             //break;
                             continue;
                         }
@@ -328,7 +353,8 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat matBynary = toBynary(matFiltered);
+                matBinary = toBinary(matFiltered);
+                matFiltered.release();
 
                 if(imgFlagBinary) {
                     ///
@@ -337,11 +363,15 @@ public class ImageProcessing implements Runnable{
                         dirBinary.mkdir();
                     }
                     try {
-                        if (matBynary.empty()) {
+                        if (matBinary.empty()) {
+                            matFiltered.release();
+                            matBinary.release();
+                            image.release();
+                            fullImage.release();
                             //break;
                             continue;
                         }
-                        Imgcodecs.imwrite(dirBinary.getCanonicalPath() + File.separator + nameImg, matBynary);
+                        Imgcodecs.imwrite(dirBinary.getCanonicalPath() + File.separator + nameImg, matBinary);
                     } catch (IOException e) {
                         logger.error("Saving error binary img", e);
                         //System.out.println("Not dirBinary");
@@ -349,9 +379,16 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat fragmentQR = toFindWhiteContour(image, matBynary);
+                fragmentQR = toFindWhiteContour(image, matBinary);
+                matBinary.release();
+                image.release();
                 if(fragmentQR.empty()){
                     //break;
+//                    fragmentQR.release();
+//                    matFiltered.release();
+//                    matBynary.release();
+//                    image.release();
+//                    fullImage.release();
                     logger.info("Fragment is empty");
                     continue;
                 }
@@ -382,6 +419,7 @@ public class ImageProcessing implements Runnable{
                         logger.error("Saving error qr img", e);
                     }
                 }
+
                 if(toReadQR(fragmentQR)){
                     logger.info("The QR-code is successfully read: " + currentCode);
                     toSaveQR(currentCode, dateImg);
@@ -398,7 +436,11 @@ public class ImageProcessing implements Runnable{
                         }
                     }
                 }
-
+                fragmentQR.release();
+//                matFiltered.release();
+//                matBynary.release();
+//                image.release();
+                fullImage.release();
                 //fileImg.delete();
             }
             try {
@@ -444,9 +486,9 @@ public class ImageProcessing implements Runnable{
         return matFiltered;
     }
 
-    private Mat toBynary(Mat matFiltered){
-        Mat matBynary = new Mat();
-        Imgproc.threshold(matFiltered, matBynary, valueThresh, 255, Imgproc.THRESH_BINARY);
+    private Mat toBinary(Mat matFiltered){
+        Mat binary = new Mat();
+        Imgproc.threshold(matFiltered, binary, valueThresh, 255, Imgproc.THRESH_BINARY);
 
 //        if(imgFlagBinary) {
 //            ///
@@ -462,9 +504,9 @@ public class ImageProcessing implements Runnable{
 //            }
 //            ///
 //        }
-        Imgproc.medianBlur(matBynary, matBynary, valueMedianBlur);
+        Imgproc.medianBlur(binary, binary, valueMedianBlur);
         logger.info("Binarization in imageProcessing");
-        return matBynary;
+        return binary;
     }
 
     private Mat toFindWhiteContour(Mat original,Mat matBynary){

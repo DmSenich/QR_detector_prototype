@@ -24,11 +24,15 @@ public class VideoStreamFirstProcessing implements Runnable {
     private final String url_params_prop = "params_system.properties";
     private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    VideoStreamSecondProcessing videoStreamSecondProcessing;
+    private static VideoStreamSecondProcessing videoStreamSecondProcessing;
     Thread threadVideo2;
     private FFmpegFrameGrabber camera;
     private OpenCVFrameConverter.ToMat converter;
-//    private Mat frame;
+    private org.bytedeco.opencv.opencv_core.Mat javaCVMat;
+    private Frame grabbedFrame;
+    private Mat centerCol;
+    private Mat centerPrevCol;
+    private Mat frame;
 //    private Mat rectFrame;
 //    private Mat prevFrame;
     private Mat diffFrame;
@@ -103,7 +107,11 @@ public class VideoStreamFirstProcessing implements Runnable {
 //            logger.info("Создание папки " + dirImg.getName());
 //        }
         converter = new OpenCVFrameConverter.ToMat();
-//        frame = new Mat();
+
+        centerCol = new Mat();
+        centerPrevCol = new Mat();
+        grabbedFrame = null;
+        frame = new Mat();
 //        rectFrame = new Mat();
 //        prevFrame = new Mat();
         diffFrame = new Mat();
@@ -117,6 +125,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 
         videoStreamSecondProcessing = new VideoStreamSecondProcessing();
         threadVideo2 = new Thread(videoStreamSecondProcessing);
+
         threadVideo2.start();
         logger.info("Params of videoFirst: time_check = " + timeCheck +", threshold = " + thresholdFirst + ", first_check_position = " + firstCheckPosition);
     }
@@ -156,6 +165,12 @@ public class VideoStreamFirstProcessing implements Runnable {
 
     @Override
     public void run(){
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException in first", e);
+        }
+
         logger.info("Launch attempt threadFirst stream");
         try {
             camera.start();
@@ -170,8 +185,9 @@ public class VideoStreamFirstProcessing implements Runnable {
         ///
 //        int i = 0;
         //int sleeping = 0;
+//        grayPrevFrame = new Mat();
         while (isActive) {
-            Frame grabbedFrame = null;
+            grabbedFrame = null;
             try {
                 grabbedFrame = camera.grabImage();
             } catch (FFmpegFrameGrabber.Exception e) {
@@ -188,9 +204,11 @@ public class VideoStreamFirstProcessing implements Runnable {
                 int height = grabbedFrame.imageHeight;
                 int width = grabbedFrame.imageWidth;
 
-                org.bytedeco.opencv.opencv_core.Mat javaCVMat = converter.convert(grabbedFrame);
+                javaCVMat = converter.convert(grabbedFrame);
                 BytePointer bytePointer = javaCVMat.data();
                 int dataSize = (int) (javaCVMat.total() * javaCVMat.elemSize());
+//                grayFrame.release();
+                javaCVMat.release();
 //            ByteBuffer buffer = (ByteBuffer) grabbedFrame.image[0];
 
                 // Преобразуем кадр из формата Frame в формат Mat
@@ -199,26 +217,38 @@ public class VideoStreamFirstProcessing implements Runnable {
                 byte[] buffer = new byte[dataSize];
                 bytePointer.get(buffer);
 
-                Mat frame = new Mat(height, width, CvType.CV_8UC3);
-
+                frame = new Mat(height, width, CvType.CV_8UC3);
                 frame.put(0, 0, buffer);
                 //SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd__HH-mm-ss");
                 //String nameImg = formater.format(dateImg) +".png";
-                Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
-                Imgproc.GaussianBlur(grayFrame, grayFrame, new Size(9, 9), 0);
-
+//                Mat grayFrame = new Mat();
+                Mat fGrayFrame = new Mat();
+                Imgproc.cvtColor(frame, fGrayFrame, Imgproc.COLOR_BGR2GRAY);
+                Imgproc.GaussianBlur(fGrayFrame, grayFrame, new Size(9, 9), 0);
+                fGrayFrame.release();
                 if (grayPrevFrame.empty()) {
+                    grayPrevFrame.release();
+                    frame.release();
                     grayPrevFrame = grayFrame.clone();
+                    grayFrame.release();
+//                    grayPrevFrame = new Mat();
+
                     //frameCount++;
                     continue;
                 } else{
 //                    System.out.println("No sleep");
-                    Mat centerCol = getOneCol(grayFrame);
-                    Mat centerPrevCol = getOneCol(grayPrevFrame);
-                    Core.absdiff(centerCol, centerPrevCol, diffFrame);
+//                    diffFrame = new Mat();
+                    centerCol = getOneCol(grayFrame);
+                    centerPrevCol = getOneCol(grayPrevFrame);
+                    Mat fDiff = new Mat();
+                    Core.absdiff(centerCol, centerPrevCol, fDiff);
+                    centerCol.release();
+                    centerPrevCol.release();
 //                    Core.absdiff(grayFrame, grayPrevFrame, diffFrame);
-                    Imgproc.threshold(diffFrame, diffFrame, thresholdFirst, 255, Imgproc.THRESH_BINARY);
+                    Imgproc.threshold(fDiff, diffFrame, thresholdFirst, 255, Imgproc.THRESH_BINARY);
                     Scalar mean = Core.mean(diffFrame);
+                    diffFrame.release();
+                    fDiff.release();
                     double diff = mean.val[0];
 //                    double diff = compFrames(grayFrame, grayPrevFrame);
                     if (diff > thresholdFirst) {
@@ -240,12 +270,16 @@ public class VideoStreamFirstProcessing implements Runnable {
                         //Новый класс
                         Container2Mat greyAndPrevGrey = new Container2Mat(grayFrame, grayPrevFrame, frame, dateImg);
                         videoStreamSecondProcessing.toAddImages(greyAndPrevGrey);
+
                         //*
                         logger.info("Movement detected");
                         //System.out.println("Frame " + frameCount + " is significantly different");
                     }
                 }
+                frame.release();
+                grayPrevFrame.release();
                 grayPrevFrame = grayFrame.clone();
+                grayFrame.release();
                 //frameCount++;
                 synchronized (this) {
                     try {
