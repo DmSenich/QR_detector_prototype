@@ -165,12 +165,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 
     @Override
     public void run(){
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException in first", e);
-        }
-
+        int timestamp = 0;
         logger.info("Launch attempt threadFirst stream");
         try {
             camera.start();
@@ -189,6 +184,7 @@ public class VideoStreamFirstProcessing implements Runnable {
         while (isActive) {
             grabbedFrame = null;
             try {
+                camera.setFrameNumber(timestamp);
                 grabbedFrame = camera.grabImage();
             } catch (FFmpegFrameGrabber.Exception e) {
                 logger.error("Error receiving a frame from the VideoStream", e);
@@ -234,6 +230,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 //                    grayPrevFrame = new Mat();
 
                     //frameCount++;
+                    timestamp += timeCheck;
                     continue;
                 } else{
 //                    System.out.println("No sleep");
@@ -281,14 +278,15 @@ public class VideoStreamFirstProcessing implements Runnable {
                 grayPrevFrame = grayFrame.clone();
                 grayFrame.release();
                 //frameCount++;
-                synchronized (this) {
-                    try {
-//                        Thread.sleep(200);
-                        wait(timeCheck);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+//                synchronized (this) {
+//                    try {
+////                        Thread.sleep(200);
+//                        wait(timeCheck);
+//                    } catch (Exception e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                }
+                timestamp += timeCheck;
             } else {
                 //System.out.println("Frame not captured");
 //                logger.info("VideoStream is lost");
