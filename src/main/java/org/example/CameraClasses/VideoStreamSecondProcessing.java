@@ -28,7 +28,7 @@ public class VideoStreamSecondProcessing implements Runnable {
 //    private final String url_params_prop = "images.properties";
 //    private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    ImageProcessing imageProcessing;
+    private ImageProcessing imageProcessing;
     Thread threadImage;
     private Mat frame;
     //    private Mat rectFrame;

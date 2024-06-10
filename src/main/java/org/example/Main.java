@@ -19,8 +19,8 @@ import java.util.Scanner;
 public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 //    static VideoCapture camera;
-    static VideoStreamFirstProcessing videoStreamProcessing;
-    static Thread threadVideo;
+    private static VideoStreamFirstProcessing videoStreamProcessing;
+    private static Thread threadVideo;
     private static String url_system_prop = "params_system.properties";
     private static String pathVideo;
     static {

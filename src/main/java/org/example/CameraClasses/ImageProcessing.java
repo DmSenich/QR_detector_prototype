@@ -283,8 +283,8 @@ public class ImageProcessing implements Runnable{
             Container2Mat fullAndFragImages;
             while ((fullAndFragImages = images.poll()) != null) {
 //                (image = imagesQ.poll()) != null
-                Mat fullImage = fullAndFragImages.getFirst();
-                Mat image = fullAndFragImages.getSecond();
+                fullImage = fullAndFragImages.getFirst();
+                image = fullAndFragImages.getSecond();
                 Date dateImg = fullAndFragImages.getDate();
                 SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
                 String nameImg = formater.format(dateImg) +".png";
@@ -322,7 +322,7 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat matFiltered = toMedianFilter(image);
+                matFiltered = toMedianFilter(image);
 
                 if(imgFlagFiltered) {
                     ///
@@ -346,7 +346,7 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat matBynary = toBinary(matFiltered);
+                matBinary = toBinary(matFiltered);
                 matFiltered.release();
 
                 if(imgFlagBinary) {
@@ -356,7 +356,7 @@ public class ImageProcessing implements Runnable{
                         dirBinary.mkdir();
                     }
                     try {
-                        if (matBynary.empty()) {
+                        if (matBinary.empty()) {
                             matFiltered.release();
                             matBinary.release();
                             image.release();
@@ -364,7 +364,7 @@ public class ImageProcessing implements Runnable{
                             //break;
                             continue;
                         }
-                        Imgcodecs.imwrite(dirBinary.getCanonicalPath() + File.separator + nameImg, matBynary);
+                        Imgcodecs.imwrite(dirBinary.getCanonicalPath() + File.separator + nameImg, matBinary);
                     } catch (IOException e) {
                         logger.error("Saving error binary img", e);
                         //System.out.println("Not dirBinary");
@@ -372,7 +372,7 @@ public class ImageProcessing implements Runnable{
                     }
                     ///
                 }
-                Mat fragmentQR = toFindWhiteContour(image, matBynary);
+                fragmentQR = toFindWhiteContour(image, matBinary);
                 matBinary.release();
                 image.release();
                 if(fragmentQR.empty()){

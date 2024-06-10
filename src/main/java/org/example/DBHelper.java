@@ -15,13 +15,13 @@ import java.util.Properties;
 
 public final class DBHelper {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    static String DB_URL;
-    static String DB_NAME;
-    static String LOGIN;
-    static String PASSWORD;
-    static String TABLE;
-    static Properties properties;
-    static final String url_prop = "database.properties";
+    private static String DB_URL;
+    private static String DB_NAME;
+    private static String LOGIN;
+    private static String PASSWORD;
+    private static String TABLE;
+    private static Properties properties;
+    private static final String url_prop = "database.properties";
     // 1 Данные
     /// 2 Проверка наличия таблицы
     /// 3 Создание таблицы при необходимости

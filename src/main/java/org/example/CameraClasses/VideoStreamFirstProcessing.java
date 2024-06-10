@@ -24,7 +24,7 @@ public class VideoStreamFirstProcessing implements Runnable {
     private final String url_params_prop = "params_system.properties";
     private static Properties params_properties;
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
-    VideoStreamSecondProcessing videoStreamSecondProcessing;
+    private static VideoStreamSecondProcessing videoStreamSecondProcessing;
     Thread threadVideo2;
     private FFmpegFrameGrabber camera;
     private OpenCVFrameConverter.ToMat converter;
@@ -180,7 +180,7 @@ public class VideoStreamFirstProcessing implements Runnable {
 //        int i = 0;
         //int sleeping = 0;
         while (isActive) {
-            Frame grabbedFrame = null;
+            grabbedFrame = null;
             try {
                 grabbedFrame = camera.grabImage();
             } catch (FFmpegFrameGrabber.Exception e) {
