@@ -31,11 +31,15 @@ public class VideoStreamSecondProcessing implements Runnable {
     ImageProcessing imageProcessing;
     Thread threadImage;
     private Mat frame;
-//    private Mat rectFrame;
+    //    private Mat rectFrame;
 //    private Mat prevFrame;
     private Mat diffFrame;
     private Mat grayFrame;
     private Mat grayPrevFrame;
+    private Mat frag;
+    private Mat frameCut;
+    private Mat grayFrameCut;
+    private Mat grayPrevFrameCut;
 //    private final double thresholdFirst = 35.0;
     private final double constThresholdSecond = 120.0;
     private final int constMinHeight = 500, constMinWight = 1100;
@@ -61,8 +65,8 @@ public class VideoStreamSecondProcessing implements Runnable {
     private final String constDirDiffName = "ImgDiff";
     private String dirBlurName;
     private String dirDiffName;
-    private String pathBlur;
-    private String pathDiff;
+//    private String pathBlur;
+//    private String pathDiff;
 //    private String dirProgName = "ImgProc";
     private boolean imgFlagBlur = false;
 
@@ -133,6 +137,34 @@ public class VideoStreamSecondProcessing implements Runnable {
         catch (Exception e){
             logger.error("Reading flags error images.properties for videoSecond, the default values are set", e);
         }
+        toInitPathsAndDirs();
+//        File dirImg = new File("ImgProg");
+//        if(!dirImg.exists()){
+//            dirImg.mkdir();
+//            logger.info("Создание папки " + dirImg.getName());
+//        }
+        frame = new Mat();
+//        rectFrame = new Mat();
+//        prevFrame = new Mat();
+        diffFrame = new Mat();
+        grayFrame = new Mat();
+        grayPrevFrame = new Mat();
+        frag = new Mat();
+        grayFrameCut = new Mat();
+        grayPrevFrameCut = new Mat();
+        frameCut = new Mat();
+
+        imageProcessing = new ImageProcessing();
+        threadImage = new Thread(imageProcessing);
+
+        threadImage.start();
+
+        logger.info("Params of videoSecond: min_height = " + minHeight +", min_wight = " + minWight + ", threshold_second = " + thresholdSecond + ", y_cut_top = " + yCutTop + ", y_cut_down = " + yCutDown);
+    }
+
+    private void toInitPathsAndDirs() {
+        String pathDiff;
+        String pathBlur;
         if(imgFlagDiff){
             try{
                 dirDiffName = img_properties.getProperty("dir_img.diff");
@@ -178,25 +210,6 @@ public class VideoStreamSecondProcessing implements Runnable {
                 dirBlurName = constDirBlurName;
             }
         }
-
-
-//        File dirImg = new File("ImgProg");
-//        if(!dirImg.exists()){
-//            dirImg.mkdir();
-//            logger.info("Создание папки " + dirImg.getName());
-//        }
-        frame = new Mat();
-//        rectFrame = new Mat();
-//        prevFrame = new Mat();
-        diffFrame = new Mat();
-        grayFrame = new Mat();
-        grayPrevFrame = new Mat();
-
-        imageProcessing = new ImageProcessing();
-        threadImage = new Thread(imageProcessing);
-        threadImage.start();
-
-        logger.info("Params of videoSecond: min_height = " + minHeight +", min_wight = " + minWight + ", threshold_second = " + thresholdSecond + ", y_cut_top = " + yCutTop + ", y_cut_down = " + yCutDown);
     }
 //    private Mat getOneCol(Mat frame){
 //        Mat oneCol = new Mat(frame.rows(), 1, CvType.CV_8UC1);
@@ -243,6 +256,11 @@ public class VideoStreamSecondProcessing implements Runnable {
     public void run(){
 //        int i = 0;
         //int sleeping = 0;
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException in second", e);
+        }
         logger.info("Launch attempt threadSecond stream");
         while (isActive) {
             Container2Mat grayAndPrevGrayImages;
@@ -273,8 +291,17 @@ public class VideoStreamSecondProcessing implements Runnable {
                 }
 
                 //sleeping = sleepCount;
-                Core.absdiff(getCutedFrame(grayFrame), getCutedFrame(grayPrevFrame), diffFrame);
-                Imgproc.threshold(diffFrame, diffFrame, thresholdSecond, 255, Imgproc.THRESH_BINARY);
+
+                grayFrameCut = getCutedFrame(grayFrame);
+                grayPrevFrameCut = getCutedFrame(grayPrevFrame);
+                grayFrame.release();
+                grayPrevFrame.release();
+                Mat fDiff = new Mat();
+                Core.absdiff(grayFrameCut, grayPrevFrameCut, fDiff);
+                grayFrameCut.release();
+                grayPrevFrameCut.release();
+                Imgproc.threshold(fDiff, diffFrame, thresholdSecond, 255, Imgproc.THRESH_BINARY);
+                fDiff.release();
                 if(imgFlagDiff) {
                     ///
                     File dirDiff = new File(dirDiffName);
@@ -284,16 +311,20 @@ public class VideoStreamSecondProcessing implements Runnable {
                     try {
                         Imgcodecs.imwrite(dirDiff.getCanonicalPath() + File.separator + nameImg, diffFrame);
                     } catch (IOException e) {
-                        logger.error("Saving error diff img", e);;
+                        logger.error("Saving error diff img", e);
                     }
                     ///
                 }
 //                System.out.println("Frame " + frameCount + " is significantly different");
                 Rect boundingRect = Imgproc.boundingRect(diffFrame);
-                Mat frag = new Mat(getCutedFrame(frame), boundingRect);
-                Imgproc.rectangle(getCutedFrame(frame), new Point(boundingRect.x, boundingRect.y),
+                diffFrame.release();
+
+                frameCut = getCutedFrame(frame);
+                frag = new Mat(frameCut, boundingRect);
+                Imgproc.rectangle(frameCut, new Point(boundingRect.x, boundingRect.y),
                         new Point(boundingRect.x + boundingRect.width, boundingRect.y + boundingRect.height),
                         new Scalar(0, 0, 255), 2);
+                frameCut.release();
                 //Imgproc.resize(frame, frame, new Size(640, 480));
                 if (isTrueSize(frag)) {
                     logger.info("A fragment of the required size in threadSecond stream");
@@ -312,6 +343,9 @@ public class VideoStreamSecondProcessing implements Runnable {
 //                        //System.out.println(path + "\n" + e.getMessage());
 //                    }
                 }
+                frameCut.release();
+                frame.release();
+                frag.release();
             }
         }
 
