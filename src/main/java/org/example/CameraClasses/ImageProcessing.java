@@ -273,7 +273,7 @@ public class ImageProcessing implements Runnable{
         try {
             Thread.sleep(1500);
         } catch (InterruptedException e) {
-            logger.error("InterruptedException in second", e);
+            logger.error("InterruptedException in imageProcessing", e);
         }
         while (isActive){
 //            if(sleeping > 0){
@@ -307,7 +307,7 @@ public class ImageProcessing implements Runnable{
 //                    continue;
 //                }
                 if(image.empty()){
-                    logger.info("ImageProcessing queue is empty");
+                    logger.debug("ImageProcessing queue is empty");
                     image.release();
                     fullImage.release();
                     //break;
@@ -429,7 +429,7 @@ public class ImageProcessing implements Runnable{
                             dirFullFrame.mkdir();
                         }
                         try {
-                            logger.info("Save full frame");
+                            logger.debug("Save full frame");
                             Imgcodecs.imwrite(dirFullFrame.getCanonicalPath() + File.separator + "full-" + nameImg, fullImage);
                         } catch (IOException e) {
                             logger.error("Saving error full frame", e);
@@ -470,7 +470,7 @@ public class ImageProcessing implements Runnable{
         ///
 //        imagesQ.add(img);
 //        framesQ.add(frame);
-        logger.info("Adding data in queue of imageProcessing");
+        logger.debug("Adding data in queue of imageProcessing");
         images.add(imgs);
     }
 
@@ -482,7 +482,7 @@ public class ImageProcessing implements Runnable{
         Mat matFiltered = new Mat();
         Imgproc.cvtColor(matFragment, matFiltered, Imgproc.COLOR_BGR2GRAY);
         Imgproc.medianBlur(matFiltered, matFiltered, valueMedianBlur);
-        logger.info("Median filter in imageProcessing");
+        logger.debug("Median filter in imageProcessing");
         return matFiltered;
     }
 
@@ -505,14 +505,14 @@ public class ImageProcessing implements Runnable{
 //            ///
 //        }
         Imgproc.medianBlur(binary, binary, valueMedianBlur);
-        logger.info("Binarization in imageProcessing");
+        logger.debug("Binarization in imageProcessing");
         return binary;
     }
 
     private Mat toFindWhiteContour(Mat original,Mat matBynary){
         Rect boundingRect = Imgproc.boundingRect(matBynary);
         Mat matQRFragment = new Mat(original, boundingRect);
-        logger.info("Search white fragment");
+        logger.debug("Search white fragment");
         return matQRFragment;
     }
 
@@ -535,14 +535,14 @@ public class ImageProcessing implements Runnable{
             }
 
         }catch (Exception e){
-            logger.error("Reading error qr-code", e);
+            logger.info("A qr-code could not be read");
             res = false;
         }
         return res;
     }
 
     private void toSaveQR(String code, Date date){
-        logger.info("Saving QR-code");
+        logger.debug("Saving QR-code");
 //        String path = "SavingQR.txt";
 //        try(FileWriter writer = new FileWriter(path, true)) {
 //            writer.write(data);

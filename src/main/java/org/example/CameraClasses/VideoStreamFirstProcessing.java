@@ -169,7 +169,7 @@ public class VideoStreamFirstProcessing implements Runnable {
         logger.info("Launch attempt threadFirst stream");
         try {
             camera.start();
-            logger.info("Launch attempt VideoStream");
+            logger.debug("Launch attempt VideoStream");
 
         } catch (FFmpegFrameGrabber.Exception e) {
             logger.error("Reading error VideoStream", e);

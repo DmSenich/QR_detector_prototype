@@ -51,7 +51,7 @@ public final class DBHelper {
         LOGIN = properties.getProperty("sql.login");
         PASSWORD = properties.getProperty("sql.password");
         TABLE = properties.getProperty("sql.table_name");
-        logger.info("Initialization");
+        logger.debug("Initialization");
         Connection connection;
         try {
             connection = DriverManager.getConnection(DB_URL + DB_NAME, LOGIN, PASSWORD);
@@ -91,7 +91,7 @@ public final class DBHelper {
             statement.setTimestamp( 1, timestamp);
             statement.setString(2, qrcode);
             statement.executeUpdate();
-            logger.info("New record");
+            logger.debug("New record");
             //System.out.println("Новая запись");
         } catch (SQLException e) {
             logger.error("SQL insert error", e);
